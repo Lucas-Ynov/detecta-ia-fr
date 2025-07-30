@@ -14,10 +14,188 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_detections: {
+        Row: {
+          ai_probability: number
+          analysis_type: string
+          created_at: string
+          id: string
+          original_text: string
+          overall_score: number
+          suspected_ai_agent: string | null
+        }
+        Insert: {
+          ai_probability: number
+          analysis_type: string
+          created_at?: string
+          id?: string
+          original_text: string
+          overall_score: number
+          suspected_ai_agent?: string | null
+        }
+        Update: {
+          ai_probability?: number
+          analysis_type?: string
+          created_at?: string
+          id?: string
+          original_text?: string
+          overall_score?: number
+          suspected_ai_agent?: string | null
+        }
+        Relationships: []
+      }
+      detection_indicators: {
+        Row: {
+          description: string | null
+          detection_id: string
+          id: string
+          indicator_name: string
+          score: number
+          weight: number
+        }
+        Insert: {
+          description?: string | null
+          detection_id: string
+          id?: string
+          indicator_name: string
+          score: number
+          weight?: number
+        }
+        Update: {
+          description?: string | null
+          detection_id?: string
+          id?: string
+          indicator_name?: string
+          score?: number
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "detection_indicators_detection_id_fkey"
+            columns: ["detection_id"]
+            isOneToOne: false
+            referencedRelation: "ai_detections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "detection_indicators_detection_id_fkey"
+            columns: ["detection_id"]
+            isOneToOne: false
+            referencedRelation: "complete_detections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      text_sections: {
+        Row: {
+          ai_probability: number
+          detection_id: string
+          end_position: number
+          id: string
+          reasoning: string | null
+          section_text: string
+          start_position: number
+          suspicion_level: string
+        }
+        Insert: {
+          ai_probability: number
+          detection_id: string
+          end_position: number
+          id?: string
+          reasoning?: string | null
+          section_text: string
+          start_position: number
+          suspicion_level: string
+        }
+        Update: {
+          ai_probability?: number
+          detection_id?: string
+          end_position?: number
+          id?: string
+          reasoning?: string | null
+          section_text?: string
+          start_position?: number
+          suspicion_level?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "text_sections_detection_id_fkey"
+            columns: ["detection_id"]
+            isOneToOne: false
+            referencedRelation: "ai_detections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "text_sections_detection_id_fkey"
+            columns: ["detection_id"]
+            isOneToOne: false
+            referencedRelation: "complete_detections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      uploaded_files: {
+        Row: {
+          created_at: string
+          detection_id: string
+          extracted_text: string
+          file_size: number
+          file_type: string
+          filename: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          detection_id: string
+          extracted_text: string
+          file_size: number
+          file_type: string
+          filename: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          detection_id?: string
+          extracted_text?: string
+          file_size?: number
+          file_type?: string
+          filename?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uploaded_files_detection_id_fkey"
+            columns: ["detection_id"]
+            isOneToOne: false
+            referencedRelation: "ai_detections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "uploaded_files_detection_id_fkey"
+            columns: ["detection_id"]
+            isOneToOne: false
+            referencedRelation: "complete_detections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      complete_detections: {
+        Row: {
+          ai_probability: number | null
+          analysis_type: string | null
+          created_at: string | null
+          files: Json | null
+          id: string | null
+          indicators: Json | null
+          original_text: string | null
+          overall_score: number | null
+          sections: Json | null
+          suspected_ai_agent: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
