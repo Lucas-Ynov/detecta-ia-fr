@@ -1,1 +1,7 @@
 project_id = "lvyngbdxvlarkbzeydzb"
+
+[functions.analyze-text]
+verify_jwt = false
+
+[functions.analyze-file]
+verify_jwt = false
