@@ -77,13 +77,6 @@ export type Database = {
             referencedRelation: "ai_detections"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "detection_indicators_detection_id_fkey"
-            columns: ["detection_id"]
-            isOneToOne: false
-            referencedRelation: "complete_detections"
-            referencedColumns: ["id"]
-          },
         ]
       }
       text_sections: {
@@ -125,13 +118,6 @@ export type Database = {
             referencedRelation: "ai_detections"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "text_sections_detection_id_fkey"
-            columns: ["detection_id"]
-            isOneToOne: false
-            referencedRelation: "complete_detections"
-            referencedColumns: ["id"]
-          },
         ]
       }
       uploaded_files: {
@@ -170,32 +156,11 @@ export type Database = {
             referencedRelation: "ai_detections"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "uploaded_files_detection_id_fkey"
-            columns: ["detection_id"]
-            isOneToOne: false
-            referencedRelation: "complete_detections"
-            referencedColumns: ["id"]
-          },
         ]
       }
     }
     Views: {
-      complete_detections: {
-        Row: {
-          ai_probability: number | null
-          analysis_type: string | null
-          created_at: string | null
-          files: Json | null
-          id: string | null
-          indicators: Json | null
-          original_text: string | null
-          overall_score: number | null
-          sections: Json | null
-          suspected_ai_agent: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       [_ in never]: never
