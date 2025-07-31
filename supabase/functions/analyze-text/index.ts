@@ -5,6 +5,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin'
 };
 
 // Configuration Supabase
@@ -520,10 +524,32 @@ serve(async (req) => {
   try {
     const { text, analysisType }: AnalysisRequest = await req.json();
 
-    if (!text || text.trim().length < 10) {
+    // Enhanced input validation
+    if (!text || typeof text !== 'string') {
       return new Response(
-        JSON.stringify({ error: 'Texte trop court pour l\'analyse' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Le texte est requis et doit être une chaîne de caractères' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    if (text.trim().length < 10) {
+      return new Response(
+        JSON.stringify({ error: 'Le texte doit contenir au moins 10 caractères' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    if (text.length > 50000) {
+      return new Response(
+        JSON.stringify({ error: 'Le texte ne peut pas dépasser 50 000 caractères' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    if (!analysisType || !['quick', 'advanced'].includes(analysisType)) {
+      return new Response(
+        JSON.stringify({ error: 'Type d\'analyse invalide' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 

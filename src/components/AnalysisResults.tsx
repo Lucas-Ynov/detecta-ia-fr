@@ -15,6 +15,7 @@ import {
   FileText,
   Clock
 } from 'lucide-react';
+import DOMPurify from 'dompurify';
 
 interface AnalysisResultsProps {
   result: {
@@ -88,10 +89,16 @@ export const AnalysisResults = ({ result }: AnalysisResultsProps) => {
       const highlighted = highlightedText.substring(section.startPosition, section.endPosition);
       const after = highlightedText.substring(section.endPosition);
       
-      highlightedText = `${before}<span class="${colorClass} px-1 rounded" title="${section.reasoning}">${highlighted}</span>${after}`;
+      // Escape the reasoning text to prevent XSS
+      const safetitle = DOMPurify.sanitize(section.reasoning, { ALLOWED_TAGS: [] });
+      highlightedText = `${before}<span class="${colorClass} px-1 rounded" title="${safetitle}">${highlighted}</span>${after}`;
     });
     
-    return highlightedText;
+    // Sanitize the final HTML to prevent XSS attacks
+    return DOMPurify.sanitize(highlightedText, {
+      ALLOWED_TAGS: ['span'],
+      ALLOWED_ATTR: ['class', 'title']
+    });
   };
 
   return (

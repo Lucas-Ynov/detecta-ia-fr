@@ -112,6 +112,15 @@ async function extractTextFromWord(fileData: Uint8Array): Promise<string> {
   return "Texte extrait du document Word. Voici un exemple de contenu qui serait extrait d'un fichier Word (.docx ou .doc) pour être analysé par notre système de détection d'IA. L'extraction préserverait la structure du document.";
 }
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin'
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -126,6 +135,23 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Aucun fichier fourni' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Enhanced file validation
+    const maxFileSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxFileSize) {
+      return new Response(
+        JSON.stringify({ error: 'Le fichier ne peut pas dépasser 10MB' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+    if (!allowedTypes.includes(file.type)) {
+      return new Response(
+        JSON.stringify({ error: 'Type de fichier non supporté. Utilisez PDF, DOCX ou TXT.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
