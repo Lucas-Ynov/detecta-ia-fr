@@ -73,8 +73,108 @@ export const AnalysisResults = ({ result }: AnalysisResultsProps) => {
   };
 
   const downloadPDF = async () => {
-    // Cette fonction sera implémentée avec jsPDF
-    console.log('Téléchargement PDF...');
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+      
+      // Configuration du PDF
+      doc.setFontSize(16);
+      doc.text('Rapport d\'Analyse IA - Detecta IA', 20, 20);
+      
+      doc.setFontSize(12);
+      doc.text(`Date: ${new Date().toLocaleDateString('fr-FR')}`, 20, 35);
+      doc.text(`Type d'analyse: ${result.analysisType === 'advanced' ? 'Avancée' : 'Rapide'}`, 20, 45);
+      
+      // Score principal
+      doc.setFontSize(14);
+      doc.text('RÉSULTAT PRINCIPAL', 20, 65);
+      doc.setFontSize(12);
+      doc.text(`Probabilité IA: ${result.aiProbability}%`, 20, 80);
+      if (result.suspectedAgent) {
+        doc.text(`Agent suspecté: ${result.suspectedAgent}`, 20, 90);
+      }
+      
+      // Indicateurs
+      doc.setFontSize(14);
+      doc.text('INDICATEURS D\'ANALYSE', 20, 110);
+      doc.setFontSize(10);
+      
+      let yPosition = 125;
+      result.indicators.forEach((indicator, index) => {
+        if (yPosition > 270) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(`${indicator.name}: ${indicator.score}%`, 20, yPosition);
+        doc.text(`${indicator.description}`, 25, yPosition + 8);
+        yPosition += 20;
+      });
+      
+      // Sections suspectes
+      if (result.sections.length > 0) {
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.text('SECTIONS SUSPECTES', 20, 20);
+        doc.setFontSize(10);
+        
+        yPosition = 35;
+        result.sections.forEach((section, index) => {
+          if (yPosition > 250) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          const level = section.suspicionLevel === 'high' ? 'Élevé' : 
+                       section.suspicionLevel === 'medium' ? 'Moyen' : 'Faible';
+          
+          doc.text(`${index + 1}. Niveau: ${level} (${section.aiProbability}%)`, 20, yPosition);
+          
+          // Découper le texte long
+          const textLines = doc.splitTextToSize(section.text, 160);
+          doc.text(textLines, 25, yPosition + 8);
+          
+          doc.text(`Raison: ${section.reasoning}`, 25, yPosition + 8 + (textLines.length * 5));
+          yPosition += 25 + (textLines.length * 5);
+        });
+      }
+      
+      // Méthodologie
+      doc.addPage();
+      doc.setFontSize(14);
+      doc.text('MÉTHODOLOGIE', 20, 20);
+      doc.setFontSize(10);
+      
+      const methodology = [
+        'Cette analyse utilise des algorithmes de détection linguistique avancés',
+        'pour identifier les patterns typiques de génération automatique de texte.',
+        '',
+        'Les indicateurs analysés incluent:',
+        '• Régularité de la longueur des phrases',
+        '• Répétition du vocabulaire et diversité lexicale',
+        '• Patterns de transition entre les idées',
+        '• Complexité syntaxique artificielle',
+        '• Usage de marqueurs temporels',
+        '• Cohérence lexicale par domaine',
+        '• Structure argumentative formelle',
+        '• Analyse stylistique des expressions',
+        '',
+        'Fiabilité: Cette analyse est indicative et ne constitue pas',
+        'une preuve absolue de génération par IA.'
+      ];
+      
+      yPosition = 35;
+      methodology.forEach(line => {
+        doc.text(line, 20, yPosition);
+        yPosition += 8;
+      });
+      
+      // Sauvegarder le PDF
+      doc.save(`rapport-detecta-ia-${Date.now()}.pdf`);
+      
+    } catch (error) {
+      console.error('Erreur lors de la génération du PDF:', error);
+      alert('Erreur lors de la génération du rapport PDF');
+    }
   };
 
   const highlightText = (text: string, sections: typeof result.sections) => {

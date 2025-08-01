@@ -126,10 +126,20 @@ function analyzeText(text: string, analysisType: 'quick' | 'advanced') {
 
   const allIndicators = [...baseIndicators, ...advancedIndicators];
   
-  // Calcul du score global pondéré
+  // Calcul du score global pondéré avec bonus de corrélation
   const totalWeight = allIndicators.reduce((sum, ind) => sum + ind.weight, 0);
   const weightedScore = allIndicators.reduce((sum, ind) => sum + (ind.score * ind.weight), 0);
-  const aiProbability = Math.round((weightedScore / totalWeight) * 100) / 100;
+  let baseScore = (weightedScore / totalWeight);
+  
+  // Bonus si plusieurs indicateurs sont élevés simultanément
+  const highScores = allIndicators.filter(ind => ind.score > 60).length;
+  const correlationBonus = highScores > 3 ? highScores * 8 : 0;
+  
+  // Bonus spécial pour les textes très suspects
+  const veryHighScores = allIndicators.filter(ind => ind.score > 80).length;
+  const suspicionBonus = veryHighScores > 2 ? 25 : 0;
+  
+  const aiProbability = Math.min(100, Math.round((baseScore + correlationBonus + suspicionBonus) * 100) / 100);
 
   // Détection de l'agent IA suspecté
   const suspectedAgent = detectAiAgent(allIndicators, text);
@@ -149,20 +159,23 @@ function analyzeText(text: string, analysisType: 'quick' | 'advanced') {
 
 // Fonctions d'analyse spécialisées pour le français
 function calculateSentenceLengthScore(sentences: string[]): number {
-  if (sentences.length === 0) return 20;
+  if (sentences.length === 0) return 65;
   
   const lengths = sentences.map(s => s.trim().split(/\s+/).length);
   const avgLength = lengths.reduce((a, b) => a + b, 0) / lengths.length;
   const variance = lengths.reduce((sum, len) => sum + Math.pow(len - avgLength, 2), 0) / lengths.length;
   
-  // Les IA tendent à produire des phrases de longueur plus régulière
-  const regularityScore = Math.max(0, 100 - (variance * 2));
+  // Les IA tendent à produire des phrases de longueur très régulière
+  const regularityScore = variance < 25 ? (25 - variance) * 4 : 0;
   
-  // Longueur moyenne suspecte (trop régulière autour de 15-25 mots)
-  const lengthSuspicion = avgLength > 15 && avgLength < 25 ? 
-    Math.min(60, Math.abs(20 - avgLength) * 3) : 0;
+  // Longueur moyenne typique des IA (15-30 mots)
+  const lengthSuspicion = avgLength > 12 && avgLength < 35 ? 
+    Math.min(85, 50 + Math.abs(22 - avgLength) * 2) : 30;
   
-  return Math.min(100, regularityScore + lengthSuspicion);
+  // Phrases trop uniformes = très suspect
+  const uniformityBonus = variance < 10 ? 25 : 0;
+  
+  return Math.min(100, regularityScore + lengthSuspicion + uniformityBonus);
 }
 
 function calculateVocabularyRepetition(words: string[]): number {
@@ -170,16 +183,22 @@ function calculateVocabularyRepetition(words: string[]): number {
   const wordCount = new Map<string, number>();
   
   cleanWords.forEach(word => {
-    if (word.length > 3) { // Ignorer les mots très courts
+    if (word.length > 3) {
       wordCount.set(word, (wordCount.get(word) || 0) + 1);
     }
   });
   
+  // Compter les mots répétés et leur fréquence
   const repetitions = Array.from(wordCount.values()).filter(count => count > 1);
-  const repetitionRatio = repetitions.length / wordCount.size;
+  const totalRepeatedWords = repetitions.reduce((sum, count) => sum + count - 1, 0);
+  const repetitionRatio = totalRepeatedWords / cleanWords.length;
   
-  // Les IA ont tendance à répéter certains termes
-  return Math.min(100, repetitionRatio * 150);
+  // Calculer la diversité lexicale (Type-Token Ratio)
+  const lexicalDiversity = wordCount.size / cleanWords.length;
+  const diversityScore = lexicalDiversity < 0.6 ? (0.6 - lexicalDiversity) * 200 : 0;
+  
+  // Les IA répètent beaucoup + faible diversité = très suspect
+  return Math.min(100, repetitionRatio * 300 + diversityScore);
 }
 
 function calculateTransitionScore(sentences: string[]): number {
@@ -328,20 +347,34 @@ function calculateArgumentativeStructure(sentences: string[]): number {
 
 // Fonctions d'analyse avancée
 function calculateStylisticAnalysis(text: string): number {
-  // Analyse stylistique avancée
+  // Patterns typiques des IA (expressions communes)
   const aiPatterns = [
-    /\b(il est important de|il convient de|il faut noter que)\b/gi,
-    /\b(en résumé|pour conclure|en définitive)\b/gi,
-    /\b(par exemple|notamment|en particulier)\b.*\b(par exemple|notamment|en particulier)\b/gi
+    /\b(il est important de|il convient de|il faut noter que|il est essentiel de)\b/gi,
+    /\b(en résumé|pour conclure|en définitive|en conclusion)\b/gi,
+    /\b(par exemple|notamment|en particulier)\b.*\b(par exemple|notamment|en particulier)\b/gi,
+    /\b(d'une part.*d'autre part|premièrement.*deuxièmement)\b/gi,
+    /\b(cependant|néanmoins|toutefois)\b/gi,
+    /\b(par conséquent|ainsi|donc|c'est pourquoi)\b/gi,
+    /\b(de plus|en outre|par ailleurs|également)\b/gi,
+    /\b(il s'agit de|cela permet de|cela consiste à)\b/gi
   ];
   
   let patternCount = 0;
+  let totalMatches = 0;
+  
   aiPatterns.forEach(pattern => {
     const matches = text.match(pattern) || [];
-    patternCount += matches.length;
+    if (matches.length > 0) {
+      patternCount++;
+      totalMatches += matches.length;
+    }
   });
   
-  return Math.min(100, patternCount * 25);
+  // Présence de multiples patterns typiques = très suspect
+  const diversityScore = patternCount > 3 ? patternCount * 15 : 0;
+  const frequencyScore = totalMatches * 12;
+  
+  return Math.min(100, diversityScore + frequencyScore);
 }
 
 function calculateLinguisticMetadata(text: string): number {
