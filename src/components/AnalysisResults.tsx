@@ -75,47 +75,155 @@ export const AnalysisResults = ({ result }: AnalysisResultsProps) => {
   const downloadPDF = async () => {
     try {
       const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
+      const html2canvas = (await import('html2canvas')).default;
       
-      // Configuration du PDF
-      doc.setFontSize(16);
-      doc.text('Rapport d\'Analyse IA - Detecta IA', 20, 20);
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
       
-      doc.setFontSize(12);
-      doc.text(`Date: ${new Date().toLocaleDateString('fr-FR')}`, 20, 35);
-      doc.text(`Type d'analyse: ${result.analysisType === 'advanced' ? 'Avancée' : 'Rapide'}`, 20, 45);
+      // === PAGE 1: HEADER ET RÉSULTATS PRINCIPAUX ===
       
-      // Score principal
+      // Header avec logo (simulé par un cercle coloré)
+      doc.setFillColor(59, 130, 246); // Couleur primary
+      doc.circle(30, 25, 8, 'F');
+      
+      // Titre principal
+      doc.setFontSize(24);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('DETECTA IA', 45, 20);
+      
       doc.setFontSize(14);
-      doc.text('RÉSULTAT PRINCIPAL', 20, 65);
-      doc.setFontSize(12);
-      doc.text(`Probabilité IA: ${result.aiProbability}%`, 20, 80);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text('Rapport d\'Analyse IA', 45, 28);
+      
+      // Ligne de séparation
+      doc.setDrawColor(200, 200, 200);
+      doc.line(20, 35, pageWidth - 20, 35);
+      
+      // Métadonnées
+      doc.setFontSize(10);
+      doc.setTextColor(80, 80, 80);
+      doc.text(`Date: ${new Date().toLocaleDateString('fr-FR', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })}`, 20, 45);
+      doc.text(`Type d'analyse: ${result.analysisType === 'advanced' ? 'Avancée' : 'Rapide'}`, 20, 52);
+      
+      // Résultat principal avec styling
+      const probabilityColor = result.aiProbability >= 70 ? [220, 38, 127] : 
+                              result.aiProbability >= 40 ? [245, 158, 11] : [34, 197, 94];
+      
+      // Boîte de résultat principal
+      doc.setFillColor(249, 250, 251);
+      doc.setDrawColor(229, 231, 235);
+      doc.roundedRect(20, 65, pageWidth - 40, 35, 3, 3, 'FD');
+      
+      doc.setFontSize(16);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('PROBABILITÉ IA', 25, 75);
+      
+      doc.setFontSize(32);
+      doc.setTextColor(probabilityColor[0], probabilityColor[1], probabilityColor[2]);
+      doc.text(`${result.aiProbability}%`, 25, 90);
+      
       if (result.suspectedAgent) {
-        doc.text(`Agent suspecté: ${result.suspectedAgent}`, 20, 90);
+        doc.setFontSize(12);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Agent suspecté: ${result.suspectedAgent}`, 25, 97);
       }
       
-      // Indicateurs
-      doc.setFontSize(14);
-      doc.text('INDICATEURS D\'ANALYSE', 20, 110);
-      doc.setFontSize(10);
+      // === INDICATEURS DÉTAILLÉS ===
+      doc.setFontSize(16);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('INDICATEURS D\'ANALYSE', 20, 120);
       
-      let yPosition = 125;
-      result.indicators.forEach((indicator, index) => {
-        if (yPosition > 270) {
-          doc.addPage();
-          yPosition = 20;
-        }
-        doc.text(`${indicator.name}: ${indicator.score}%`, 20, yPosition);
-        doc.text(`${indicator.description}`, 25, yPosition + 8);
-        yPosition += 20;
+      let yPosition = 135;
+      const maxIndicatorsPerPage = 6;
+      
+      result.indicators.slice(0, maxIndicatorsPerPage).forEach((indicator, index) => {
+        // Barre de progression
+        const barWidth = 120;
+        const barHeight = 8;
+        const xBar = 25;
+        
+        // Fond de la barre
+        doc.setFillColor(229, 231, 235);
+        doc.roundedRect(xBar, yPosition - 3, barWidth, barHeight, 2, 2, 'F');
+        
+        // Barre de progression
+        const fillWidth = (indicator.score / 100) * barWidth;
+        const indicatorColor = indicator.score >= 70 ? [220, 38, 127] : 
+                              indicator.score >= 40 ? [245, 158, 11] : [34, 197, 94];
+        doc.setFillColor(indicatorColor[0], indicatorColor[1], indicatorColor[2]);
+        doc.roundedRect(xBar, yPosition - 3, fillWidth, barHeight, 2, 2, 'F');
+        
+        // Texte de l'indicateur
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text(indicator.name, 25, yPosition - 8);
+        
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(indicatorColor[0], indicatorColor[1], indicatorColor[2]);
+        doc.text(`${indicator.score}%`, xBar + barWidth + 5, yPosition + 1);
+        
+        // Description
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(100, 100, 100);
+        const descLines = doc.splitTextToSize(indicator.description, 140);
+        doc.text(descLines, 25, yPosition + 8);
+        
+        yPosition += 25;
       });
       
-      // Sections suspectes
+      // === PAGE 2: GRAPHIQUE RADAR ===
+      doc.addPage();
+      
+      // Header de page
+      doc.setFontSize(16);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('ANALYSE RADAR', 20, 20);
+      
+      // Capture du graphique radar
+      try {
+        const radarElement = document.querySelector('[data-testid="radar-chart"]') as HTMLElement;
+        if (radarElement) {
+          const canvas = await html2canvas(radarElement, {
+            backgroundColor: '#ffffff',
+            scale: 2,
+            useCORS: true
+          });
+          
+          const imgData = canvas.toDataURL('image/png');
+          const imgWidth = 150;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          
+          doc.addImage(imgData, 'PNG', 30, 30, imgWidth, imgHeight);
+        }
+      } catch (error) {
+        console.warn('Impossible de capturer le graphique radar:', error);
+        doc.setFontSize(12);
+        doc.setTextColor(100, 100, 100);
+        doc.text('Graphique radar non disponible dans ce rapport', 30, 50);
+      }
+      
+      // === PAGE 3: SECTIONS SUSPECTES ===
       if (result.sections.length > 0) {
         doc.addPage();
-        doc.setFontSize(14);
+        
+        doc.setFontSize(16);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(0, 0, 0);
         doc.text('SECTIONS SUSPECTES', 20, 20);
-        doc.setFontSize(10);
         
         yPosition = 35;
         result.sections.forEach((section, index) => {
@@ -124,53 +232,101 @@ export const AnalysisResults = ({ result }: AnalysisResultsProps) => {
             yPosition = 20;
           }
           
-          const level = section.suspicionLevel === 'high' ? 'Élevé' : 
-                       section.suspicionLevel === 'medium' ? 'Moyen' : 'Faible';
+          // Badge niveau de suspicion
+          const levelColors = {
+            high: [220, 38, 127],
+            medium: [245, 158, 11],
+            low: [34, 197, 94]
+          };
           
-          doc.text(`${index + 1}. Niveau: ${level} (${section.aiProbability}%)`, 20, yPosition);
+          const levelTexts = {
+            high: 'ÉLEVÉ',
+            medium: 'MOYEN', 
+            low: 'FAIBLE'
+          };
           
-          // Découper le texte long
-          const textLines = doc.splitTextToSize(section.text, 160);
-          doc.text(textLines, 25, yPosition + 8);
+          const levelColor = levelColors[section.suspicionLevel];
+          doc.setFillColor(levelColor[0], levelColor[1], levelColor[2]);
+          doc.roundedRect(20, yPosition - 5, 25, 8, 2, 2, 'F');
           
-          doc.text(`Raison: ${section.reasoning}`, 25, yPosition + 8 + (textLines.length * 5));
-          yPosition += 25 + (textLines.length * 5);
+          doc.setFontSize(8);
+          doc.setFont(undefined, 'bold');
+          doc.setTextColor(255, 255, 255);
+          doc.text(levelTexts[section.suspicionLevel], 22, yPosition);
+          
+          // Probabilité
+          doc.setFontSize(11);
+          doc.setFont(undefined, 'bold');
+          doc.setTextColor(0, 0, 0);
+          doc.text(`${section.aiProbability}%`, 50, yPosition);
+          
+          // Texte de la section
+          doc.setFontSize(10);
+          doc.setFont(undefined, 'normal');
+          doc.setTextColor(60, 60, 60);
+          const textLines = doc.splitTextToSize(`"${section.text}"`, 150);
+          doc.text(textLines, 20, yPosition + 10);
+          
+          // Raison
+          doc.setFontSize(9);
+          doc.setFont(undefined, 'italic');
+          doc.setTextColor(100, 100, 100);
+          const reasonLines = doc.splitTextToSize(section.reasoning, 150);
+          doc.text(reasonLines, 20, yPosition + 10 + (textLines.length * 4) + 5);
+          
+          yPosition += 25 + (textLines.length * 4) + (reasonLines.length * 3);
         });
       }
       
-      // Méthodologie
+      // === PAGE FINALE: MÉTHODOLOGIE ===
       doc.addPage();
-      doc.setFontSize(14);
+      
+      doc.setFontSize(16);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(0, 0, 0);
       doc.text('MÉTHODOLOGIE', 20, 20);
-      doc.setFontSize(10);
       
       const methodology = [
-        'Cette analyse utilise des algorithmes de détection linguistique avancés',
-        'pour identifier les patterns typiques de génération automatique de texte.',
+        'Cette analyse utilise des algorithmes de détection linguistique avancés pour identifier',
+        'les patterns typiques de génération automatique de texte.',
         '',
-        'Les indicateurs analysés incluent:',
-        '• Régularité de la longueur des phrases',
-        '• Répétition du vocabulaire et diversité lexicale',
-        '• Patterns de transition entre les idées',
-        '• Complexité syntaxique artificielle',
-        '• Usage de marqueurs temporels',
-        '• Cohérence lexicale par domaine',
-        '• Structure argumentative formelle',
-        '• Analyse stylistique des expressions',
+        'Les indicateurs analysés incluent :',
+        '• Cohérence stylistique et variations linguistiques',
+        '• Patterns de répétition et structures syntaxiques',
+        '• Complexité lexicale et richesse vocabulaire',
+        '• Marqueurs temporels et références contextuelles',
+        '• Erreurs typiques des modèles de langage',
         '',
-        'Fiabilité: Cette analyse est indicative et ne constitue pas',
-        'une preuve absolue de génération par IA.'
+        'Ce rapport est généré automatiquement par Detecta IA.',
+        `Analyse effectuée le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`
       ];
+      
+      doc.setFontSize(11);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(80, 80, 80);
       
       yPosition = 35;
       methodology.forEach(line => {
+        if (yPosition > 270) {
+          doc.addPage();
+          yPosition = 20;
+        }
         doc.text(line, 20, yPosition);
-        yPosition += 8;
+        yPosition += 7;
       });
       
-      // Sauvegarder le PDF
-      doc.save(`rapport-detecta-ia-${Date.now()}.pdf`);
+      // Footer sur toutes les pages
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Page ${i}/${totalPages}`, pageWidth - 30, pageHeight - 10);
+        doc.text('Detecta IA - Rapport d\'analyse', 20, pageHeight - 10);
+      }
       
+      // Téléchargement
+      doc.save(`detecta-ia-rapport-${Date.now()}.pdf`);
     } catch (error) {
       console.error('Erreur lors de la génération du PDF:', error);
       alert('Erreur lors de la génération du rapport PDF');

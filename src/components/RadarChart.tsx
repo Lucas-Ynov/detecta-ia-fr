@@ -20,7 +20,7 @@ export const RadarChart = ({ indicators }: RadarChartProps) => {
   }));
 
   return (
-    <div className="w-full h-96">
+    <div className="w-full h-96" data-testid="radar-chart">
       <ResponsiveContainer width="100%" height="100%">
         <RechartsRadarChart data={data}>
           <PolarGrid />
