@@ -195,21 +195,33 @@ export const AnalysisResults = ({ result }: AnalysisResultsProps) => {
       
       // Capture du graphique radar
       try {
-        const radarElement = document.querySelector('[data-testid="radar-chart"]') as HTMLElement;
+        const radarElement = document.querySelector('[data-testid="radar-chart"] svg') as SVGElement;
         if (radarElement) {
-          // Attendre que le graphique soit complètement rendu
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Convertir le SVG en image
+          const svgData = new XMLSerializer().serializeToString(radarElement);
+          const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+          const svgUrl = URL.createObjectURL(svgBlob);
           
-          const canvas = await html2canvas(radarElement, {
-            backgroundColor: '#ffffff',
-            scale: 2,
-            useCORS: true,
-            allowTaint: true,
-            foreignObjectRendering: true,
-            logging: false,
-            width: radarElement.offsetWidth,
-            height: radarElement.offsetHeight
+          // Créer une image à partir du SVG
+          const img = new Image();
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = svgUrl;
           });
+          
+          // Créer un canvas et dessiner l'image
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          
+          // Fond blanc
+          ctx!.fillStyle = 'white';
+          ctx!.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // Dessiner l'image SVG
+          ctx!.drawImage(img, 0, 0);
           
           const imgData = canvas.toDataURL('image/png', 1.0);
           const imgWidth = 150;
@@ -217,20 +229,42 @@ export const AnalysisResults = ({ result }: AnalysisResultsProps) => {
           
           doc.addImage(imgData, 'PNG', 30, 30, imgWidth, imgHeight);
           
+          // Nettoyer
+          URL.revokeObjectURL(svgUrl);
+          
           // Ajouter le titre du graphique
           doc.setFontSize(12);
           doc.setTextColor(100, 100, 100);
           doc.text('Analyse radar des indicateurs de détection IA', 30, 30 + imgHeight + 15);
         } else {
-          throw new Error('Élément radar non trouvé');
+          throw new Error('SVG du graphique radar non trouvé');
         }
       } catch (error) {
-        console.warn('Impossible de capturer le graphique radar:', error);
-        doc.setFontSize(12);
-        doc.setTextColor(100, 100, 100);
-        doc.text('Graphique radar non disponible dans ce rapport', 30, 50);
-        doc.setFontSize(10);
-        doc.text('Le graphique sera disponible dans les prochaines versions', 30, 65);
+        console.error('Erreur capture radar:', error);
+        
+        // Fallback: créer un graphique radar simple avec du texte
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('GRAPHIQUE RADAR - Vue alternative', 30, 40);
+        
+        let yPos = 60;
+        result.indicators.forEach((indicator, index) => {
+          doc.setFontSize(10);
+          doc.setFont(undefined, 'normal');
+          doc.setTextColor(60, 60, 60);
+          doc.text(`${indicator.name}: ${indicator.score}%`, 30, yPos);
+          
+          // Barre visuelle simple
+          const barWidth = 100;
+          const fillWidth = (indicator.score / 100) * barWidth;
+          doc.setDrawColor(200, 200, 200);
+          doc.rect(30, yPos + 3, barWidth, 3);
+          doc.setFillColor(59, 130, 246);
+          doc.rect(30, yPos + 3, fillWidth, 3, 'F');
+          
+          yPos += 15;
+        });
       }
       
       // === PAGE 3: SECTIONS SUSPECTES ===
