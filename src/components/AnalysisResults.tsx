@@ -197,23 +197,40 @@ export const AnalysisResults = ({ result }: AnalysisResultsProps) => {
       try {
         const radarElement = document.querySelector('[data-testid="radar-chart"]') as HTMLElement;
         if (radarElement) {
+          // Attendre que le graphique soit complètement rendu
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
           const canvas = await html2canvas(radarElement, {
             backgroundColor: '#ffffff',
             scale: 2,
-            useCORS: true
+            useCORS: true,
+            allowTaint: true,
+            foreignObjectRendering: true,
+            logging: false,
+            width: radarElement.offsetWidth,
+            height: radarElement.offsetHeight
           });
           
-          const imgData = canvas.toDataURL('image/png');
+          const imgData = canvas.toDataURL('image/png', 1.0);
           const imgWidth = 150;
           const imgHeight = (canvas.height * imgWidth) / canvas.width;
           
           doc.addImage(imgData, 'PNG', 30, 30, imgWidth, imgHeight);
+          
+          // Ajouter le titre du graphique
+          doc.setFontSize(12);
+          doc.setTextColor(100, 100, 100);
+          doc.text('Analyse radar des indicateurs de détection IA', 30, 30 + imgHeight + 15);
+        } else {
+          throw new Error('Élément radar non trouvé');
         }
       } catch (error) {
         console.warn('Impossible de capturer le graphique radar:', error);
         doc.setFontSize(12);
         doc.setTextColor(100, 100, 100);
         doc.text('Graphique radar non disponible dans ce rapport', 30, 50);
+        doc.setFontSize(10);
+        doc.text('Le graphique sera disponible dans les prochaines versions', 30, 65);
       }
       
       // === PAGE 3: SECTIONS SUSPECTES ===
